@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+service GeoService {
+  rpc CountriesList (GetCountriesListRequest) returns (GetCountriesListReply) {}
+  rpc ProvincesByCountry (GetProvincesByCountryRequest) returns (GetProvincesByCountryReply) {}
+  rpc CitiesByProvince (GetCitiesByProvinceRequest) returns (GetCitiesByProvinceReply) {}
+  rpc CountryAndProvinceByIP (GetCountryAndProvinceByIPRequest) returns (GetCountryAndProvinceByIPReply) {}
+}
+
+message GetCountriesListRequest {}
+
+message GetCountriesListReply {
+  repeated Country countries = 1;
+}
+
+message Country {
+  string name = 1;
+}
+
+message GetProvincesByCountryRequest {
+  Country country = 1;
+}
+
+message GetProvincesByCountryReply {
+  repeated Province provinces = 1;
+}
+
+message Province {
+  string name = 1;
+  Country country = 2;
+}
+
+message GetCitiesByProvinceRequest {
+  Province province = 1;
+}
+
+message GetCitiesByProvinceReply {
+  repeated City cities = 1;
+}
+
+message City {
+  string name = 1;
+  Province province = 2;
+}
+
+message GetCountryAndProvinceByIPRequest {
+  string ip = 1;
+}
+
+message GetCountryAndProvinceByIPReply {
+  Country country = 1;
+  Province province = 2;
+}

@@ -1,0 +1,9 @@
+# Project exclude paths
+.idea
+/project/project/target/
+/project/target/
+/target/
+/target/global-logging/
+/target/protobuf_external/
+/target/scala-2.13/classes/
+/target/streams/
