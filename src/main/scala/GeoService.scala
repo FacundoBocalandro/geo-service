@@ -51,7 +51,7 @@ class CSVReader extends LocationDatabase {
   val data: List[WorldCity] = getWorldCities("src/main/world-cities.csv")
 
   def getCountries: List[Country] = {
-    data.map(_.country)
+    data.map(_.country).distinct
   }
 
   def getProvincesByCountry(country: Country): List[Province] = {
