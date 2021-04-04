@@ -18,7 +18,7 @@ message Country {
 }
 
 message GetProvincesByCountryRequest {
-  Country country = 1;
+  string countryName = 1;
 }
 
 message GetProvincesByCountryReply {
@@ -31,7 +31,8 @@ message Province {
 }
 
 message GetCitiesByProvinceRequest {
-  Province province = 1;
+  string provinceName = 1;
+  string countryName = 2;
 }
 
 message GetCitiesByProvinceReply {

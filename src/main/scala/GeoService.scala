@@ -16,12 +16,12 @@ class MyService extends GeoService {
   }
 
   override def provincesByCountry(request: GetProvincesByCountryRequest): Future[GetProvincesByCountryReply] = {
-    val reply = GetProvincesByCountryReply(provinces = locationDatabase.getProvincesByCountry(request.country.orNull))
+    val reply = GetProvincesByCountryReply(provinces = locationDatabase.getProvincesByCountry(Country(name = request.countryName)))
     Future.successful(reply)
   }
 
   override def citiesByProvince(request: GetCitiesByProvinceRequest): Future[GetCitiesByProvinceReply] = {
-    val reply = GetCitiesByProvinceReply(cities = locationDatabase.getCitiesByProvince(request.province.orNull))
+    val reply = GetCitiesByProvinceReply(cities = locationDatabase.getCitiesByProvince(Province(name = request.provinceName, country = Option(Country(name = request.countryName)))))
     Future.successful(reply)
   }
 
@@ -127,9 +127,10 @@ object ClientDemo extends App {
   val stubs = List(stub1, stub2)
   val healthyStubs = stubs
 
-
-  // Say hello (request/response)
-  val response: Future[GetCountriesListReply] = stub1.countriesList(GetCountriesListRequest())
+//    val response: Future[GetCountriesListReply] = stub1.countriesList(GetCountriesListRequest())
+//  val response: Future[GetProvincesByCountryReply] = stub1.provincesByCountry(GetProvincesByCountryRequest(countryName = "Argentina"))
+//  val response: Future[GetCitiesByProvinceReply] = stub1.citiesByProvince(GetCitiesByProvinceRequest(provinceName = "Buenos Aires", countryName = "Argentina"))
+  val response: Future[GetCountryAndProvinceByIPReply] = stub1.countryAndProvinceByIP(GetCountryAndProvinceByIPRequest(ip = "8.8.8.8"))
 
   response.onComplete { r =>
     println("Response: " + r)
