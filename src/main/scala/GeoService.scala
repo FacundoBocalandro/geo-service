@@ -65,10 +65,10 @@ class CSVReader extends LocationDatabase {
   }
 
   def getCountryAndProvinceByIP(ip: String): (Country, Province) = {
-    val source = Source.fromURL("https://ipapi.co/" + ip + "/json/")
+    val source = Source.fromURL("https://ipwhois.app/json/" + ip )
     val content: Json = parse(source.mkString).getOrElse(null)
     source.close()
-    val countryString: String = content.\\("country_name").head.asString.getOrElse("")
+    val countryString: String = content.\\("country").head.asString.getOrElse("")
     val provinceString: String = content.\\("region").head.asString.getOrElse("")
     val country: Country = Country(name = countryString)
     (country, Province(name = provinceString, Option(country)))
