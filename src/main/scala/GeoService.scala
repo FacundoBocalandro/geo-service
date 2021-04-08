@@ -1,10 +1,8 @@
-import geo_service.GeoServiceGrpc.{GeoService, GeoServiceStub}
-import geo_service.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, Province}
-import io.grpc.stub.StreamObserver
+import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
+import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
 import io.grpc.{ManagedChannelBuilder, ServerBuilder}
 
 import scala.io._
-import scala.concurrent.ExecutionContext.global
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 
 class MyService extends GeoService {
@@ -29,6 +27,10 @@ class MyService extends GeoService {
     val replyTuple = locationDatabase.getCountryAndProvinceByIP(request.ip)
     val reply = GetCountryAndProvinceByIPReply(country = Option(replyTuple._1), province = Option(replyTuple._2))
     Future.successful(reply)
+  }
+
+  override def ping(request: PingRequest): Future[PingReply] = {
+    Future.successful(PingReply())
   }
 }
 

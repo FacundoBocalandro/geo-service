@@ -1,10 +1,13 @@
 syntax = "proto3";
 
+package geoservice;
+
 service GeoService {
   rpc CountriesList (GetCountriesListRequest) returns (GetCountriesListReply) {}
   rpc ProvincesByCountry (GetProvincesByCountryRequest) returns (GetProvincesByCountryReply) {}
   rpc CitiesByProvince (GetCitiesByProvinceRequest) returns (GetCitiesByProvinceReply) {}
   rpc CountryAndProvinceByIP (GetCountryAndProvinceByIPRequest) returns (GetCountryAndProvinceByIPReply) {}
+  rpc Ping(PingRequest) returns(PingReply) {}
 }
 
 message GetCountriesListRequest {}
@@ -52,3 +55,6 @@ message GetCountryAndProvinceByIPReply {
   Country country = 1;
   Province province = 2;
 }
+
+message PingRequest {}
+message PingReply {}
