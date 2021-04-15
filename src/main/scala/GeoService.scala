@@ -100,17 +100,100 @@ object CSVReader {
 }
 
 object GeoServiceServer extends App {
-  val builder = ServerBuilder.forPort(50000)
 
-  builder.addService(
-    GeoService.bindService(new MyService(), ExecutionContext.global)
-  )
+  import io.etcd.jetcd._
 
-  val server = builder.build()
-  server.start()
+  // create client
+  val client: Client = Client.builder().endpoints("http://127.0.0.1:2379").build()
+  val kvClient: KV = client.getKVClient
 
-  println("Running....")
-  server.awaitTermination()
+  val key = ByteSequence.from("/service/geo".getBytes())
+  val value = ByteSequence.from(args(0).getBytes())
+
+  // put the key-value
+  kvClient.put(key, value).get()
+
+  System.in.read()
+
+//
+//  // get the CompletableFuture
+//  val getFuture = kvClient.get(key);
+//
+//  // get the value from CompletableFuture
+//  val response = getFuture.get();
+//
+//  // delete the key
+//  kvClient.delete(key).get();
+
+
+
+
+
+
+
+
+  //  import org.etcd4s.{Etcd4sClientConfig, Etcd4sClient}
+  //  import org.etcd4s.implicits._
+  //  import org.etcd4s.formats._
+  //  import org.etcd4s.pb.etcdserverpb._
+  //  import io.grpc.stub.CallStreamObserver
+  //  import java.util.concurrent._
+  //
+  //  import scala.concurrent.Future
+  //  import scala.concurrent.duration._
+  //  import cats.effect.IO
+  //  import java.util.concurrent._
+  //
+  //  implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
+  //  //  implicit val cs = IO.contextShift(ec)
+  //
+  //  //   create the client
+  //  val config = Etcd4sClientConfig(
+  //      address = "127.0.0.1",
+  //      port = 2379
+  //  )
+  //
+  //  val client = Etcd4sClient.newClient(config)
+  //
+  //  IO(client.leaseGrant(90))
+  //    .attempt.map {
+  //    case Left(x) => print(x)
+  //    case Right(x) => print(x)
+  //  }
+  //
+
+  //  print("Aca llego")
+  //  client.leaseApi.leaseGrant(LeaseGrantRequest)
+  //
+  //  //  client.leaseGrant(90).onComplete {
+  //  //    case Success(value) =>
+  //  //      print("maxi re putito")
+  //  client.kvApi.put(PutRequest(key = s"/service/geo/${args(0)}", value = args(0), lease = args(1)))
+  //  //    case Failure(exception) => println("exception: " + exception)
+  //  //  }
+  //
+  //  val builder = ServerBuilder.forPort(args(0).toInt)
+  //
+  //  builder.addService(
+  //    GeoService.bindService(new MyService(), ExecutionContext.global)
+  //  )
+  //
+  //  val server = builder.build()
+  //  server.start()
+  //
+  //  println("Running....")
+  //
+  //  val ex = new ScheduledThreadPoolExecutor(1)
+  //  val task = new Runnable {
+  //    def run() = {
+  //      client.leaseApi.leaseKeepAlive(LeaseKeepAliveRequest(iD = args(1).toLong))
+  //      print("keep alive")
+  //    }
+  //  }
+  //  val f = ex.scheduleAtFixedRate(task, 10, 10, TimeUnit.SECONDS)
+  //  f.cancel(false)
+  //
+  //  server.awaitTermination()
 }
 
 object ClientDemo extends App {
