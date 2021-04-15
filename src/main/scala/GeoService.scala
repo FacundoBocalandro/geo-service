@@ -1,6 +1,7 @@
 import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
 import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
 import io.grpc.{ManagedChannelBuilder, ServerBuilder}
+import org.etcd4s.Etcd4sClient
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
@@ -68,7 +69,7 @@ class CSVReader extends LocationDatabase {
   }
 
   def getCountryAndProvinceByIP(ip: String): (Country, Province) = {
-    val source = Source.fromURL("https://ipwhois.app/json/" + ip )
+    val source = Source.fromURL("https://ipwhois.app/json/" + ip)
     val content: Json = parse(source.mkString).getOrElse(null)
     source.close()
     val countryString: String = content.\\("country").head.asString.getOrElse("")
@@ -215,9 +216,9 @@ object ClientDemo extends App {
   val stubs = List(stub1, stub2)
   val healthyStubs = stubs
 
-//    val response: Future[GetCountriesListReply] = stub1.countriesList(GetCountriesListRequest())
-//  val response: Future[GetProvincesByCountryReply] = stub1.provincesByCountry(GetProvincesByCountryRequest(countryName = "Argentina"))
-//  val response: Future[GetCitiesByProvinceReply] = stub1.citiesByProvince(GetCitiesByProvinceRequest(provinceName = "Buenos Aires", countryName = "Argentina"))
+  //    val response: Future[GetCountriesListReply] = stub1.countriesList(GetCountriesListRequest())
+  //  val response: Future[GetProvincesByCountryReply] = stub1.provincesByCountry(GetProvincesByCountryRequest(countryName = "Argentina"))
+  //  val response: Future[GetCitiesByProvinceReply] = stub1.citiesByProvince(GetCitiesByProvinceRequest(provinceName = "Buenos Aires", countryName = "Argentina"))
   val response: Future[GetCountryAndProvinceByIPReply] = stub1.countryAndProvinceByIP(GetCountryAndProvinceByIPRequest(ip = "8.8.8.8"))
 
   response.onComplete { r =>
