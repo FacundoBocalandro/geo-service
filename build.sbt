@@ -14,7 +14,12 @@ libraryDependencies ++= Seq(
 
 libraryDependencies ++= Seq(
   "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
-  "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
+  "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
+  "com.github.mingchuno" %% "etcd4s-core" % "0.4.0",
+  "org.typelevel" %% "cats-effect" % "2.0.0",
+  "io.etcd" % "jetcd-core" % "0.5.4",
+  "org.slf4j" % "slf4j-api" % "1.7.30",
+  "org.slf4j" % "slf4j-simple" % "1.7.30"
 )
 
 Compile / PB.targets := Seq(

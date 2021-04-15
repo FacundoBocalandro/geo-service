@@ -16,7 +16,7 @@ const geo_proto = grpc.loadPackageDefinition(packageDefinition).geoservice;
 
 async function initClient(ips) {
 
-    const client1 = new geo_proto.GeoService("localhost:50000", grpc.credentials.createInsecure())
+    const client1 = new geo_proto.GeoService("127.0.1.1:50000", grpc.credentials.createInsecure())
     const client2 = new geo_proto.GeoService("localhost:50001", grpc.credentials.createInsecure())
     const client3 = new geo_proto.GeoService("localhost:50002", grpc.credentials.createInsecure())
 
