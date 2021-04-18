@@ -13,13 +13,10 @@ libraryDependencies ++= Seq(
 ).map(_ % circeVersion)
 
 libraryDependencies ++= Seq(
-  "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
+  "io.grpc" % "grpc-netty" % "1.4.0",
   "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
-  "com.github.mingchuno" %% "etcd4s-core" % "0.4.0",
-  "org.typelevel" %% "cats-effect" % "2.0.0",
   "io.etcd" % "jetcd-core" % "0.5.4",
-  "org.slf4j" % "slf4j-api" % "1.7.30",
-  "org.slf4j" % "slf4j-simple" % "1.7.30"
+  "com.github.coreos" % "jetcd" % "0.0.2"
 )
 
 Compile / PB.targets := Seq(
@@ -32,3 +29,7 @@ libraryDependencies ++= Seq(
 )
 
 libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.11.0"
+
+resolvers ++= Seq(
+  "jitpack" at "https://jitpack.io/"
+)

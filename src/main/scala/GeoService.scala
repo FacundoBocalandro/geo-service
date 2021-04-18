@@ -1,7 +1,6 @@
 import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
 import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
 import io.grpc.{ManagedChannelBuilder, ServerBuilder}
-import org.etcd4s.Etcd4sClient
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
