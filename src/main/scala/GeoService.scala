@@ -106,9 +106,14 @@ object GeoServiceServer extends App {
   // create client
   val client: Client = Client.builder().endpoints("http://127.0.0.1:2379").build()
   val kvClient: KV = client.getKVClient
+  val leaseClient: Lease = client.getLeaseClient
 
   val key = ByteSequence.from("/service/geo".getBytes())
   val value = ByteSequence.from(args(0).getBytes())
+
+  val leaseId = leaseClient.grant(90).get.getID
+
+  leaseClient.timeToLive()
 
   // put the key-value
   kvClient.put(key, value).get()
