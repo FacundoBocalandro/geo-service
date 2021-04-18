@@ -16,7 +16,8 @@ libraryDependencies ++= Seq(
   "io.grpc" % "grpc-netty" % "1.4.0",
   "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
   "io.etcd" % "jetcd-core" % "0.5.4",
-  "com.github.coreos" % "jetcd" % "0.0.2"
+  "com.github.coreos" % "jetcd" % "0.0.2",
+  "com.github.cb372" %% "scalacache-memcached" % "0.28.0"
 )
 
 Compile / PB.targets := Seq(
