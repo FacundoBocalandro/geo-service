@@ -16,6 +16,11 @@ const packageDefinition = protoLoader.loadSync(
 
 const geo_proto = grpc.loadPackageDefinition(packageDefinition).geoservice;
 
+const getClients = async () => {
+    const keys = await client.getAll().prefix('/service/geo')
+    return Object.values(keys).map(value => ({key: value, service: promisifyAll(new geo_proto.GeoService(`localhost:${value}`, grpc.credentials.createInsecure()))}))
+}
+
 async function initClient(){
     let indexHealthyClient = 0
     let healthyClients = []
@@ -105,6 +110,8 @@ function promisifyAll(client) {
     }
     return to;
 }
+
+const ips = ["8.8.8.8"]
 
 
 initClient();

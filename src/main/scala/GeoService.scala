@@ -108,7 +108,7 @@ object GeoServiceServer extends App {
   val kvClient: KV = client.getKVClient
   val leaseClient: Lease = client.getLeaseClient
 
-  val key = ByteSequence.from("/service/geo".getBytes())
+  val key = ByteSequence.from(s"/service/geo/${args(0)}".getBytes())
   val value = ByteSequence.from(args(0).getBytes())
 
   val leaseId = leaseClient.grant(25).get.getID
