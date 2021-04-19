@@ -43,7 +43,7 @@ async function initClient(){
     for await (const ip of ips) {
         healthyClients = await getClients()
         while (healthyClients.length === 0){
-            interval = setInterval(getClients, 2000)
+            interval = setInterval(getClients, 20000)
         }
         interval = null;
         console.log("has client")
