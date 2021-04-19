@@ -1,5 +1,7 @@
 import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
 import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
+import io.etcd.jetcd.kv.PutResponse
+import io.etcd.jetcd.support.CloseableClient
 import io.grpc.{ManagedChannelBuilder, ServerBuilder}
 
 import java.util.concurrent.TimeUnit
@@ -102,6 +104,18 @@ object CSVReader {
 object GeoServiceServer extends App {
 
   import io.etcd.jetcd._
+  import io.etcd.jetcd.options.PutOption
+  import io.etcd.jetcd.support.Observers
+  import io.grpc.stub.StreamObserver
+  import java.util.concurrent.CountDownLatch
+  import java.util.concurrent.atomic.AtomicReference
+  import io.etcd.jetcd.support.CloseableClient
+  import java.util.concurrent.TimeUnit
+  import io.etcd.jetcd.lease.LeaseKeepAliveResponse
+  import java.util.concurrent.Executors
+  import concurrent.{ExecutionContext, Future}
+  import concurrent.duration._
+  import akka.actor._
 
   // create client
   val client: Client = Client.builder().endpoints("http://127.0.0.1:2379").build()
