@@ -2,6 +2,13 @@ import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
 import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
 import io.etcd.jetcd.options.PutOption
 import io.grpc.{ManagedChannelBuilder, ServerBuilder}
+import scalacache.Cache
+import scalacache.memcached.MemcachedCache
+
+import scalacache._
+import scalacache.memcached._
+import scalacache.serialization.binary._
+import scalacache.modes.sync.mode
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
@@ -69,13 +76,19 @@ class CSVReader extends LocationDatabase {
   }
 
   def getCountryAndProvinceByIP(ip: String): (Country, Province) = {
-    val source = Source.fromURL("https://ipwhois.app/json/" + ip)
-    val content: Json = parse(source.mkString).getOrElse(null)
-    source.close()
-    val countryString: String = content.\\("country").head.asString.getOrElse("")
-    val provinceString: String = content.\\("region").head.asString.getOrElse("")
-    val country: Country = Country(name = countryString)
-    (country, Province(name = provinceString, Option(country)))
+
+    implicit val countryCache: Cache[(Country, Province)] = MemcachedCache("localhost:11211")
+
+    countryCache.get(ip).getOrElse({
+      println("Aca no cacheo")
+      val source = Source.fromURL("https://ipwhois.app/json/" + ip)
+      val content: Json = parse(source.mkString).getOrElse(null)
+      source.close()
+      val countryString: String = content.\\("country").head.asString.getOrElse("")
+      val provinceString: String = content.\\("region").head.asString.getOrElse("")
+      val country: Country = Country(name = countryString)
+      (country, Province(name = provinceString, Option(country)))
+    })
   }
 }
 
@@ -121,7 +134,7 @@ object GeoServiceServer extends App {
   // put the key-value
   kvClient.put(key, value, PutOption.newBuilder().withLeaseId(leaseId).build()).get()
 
-  implicit val countryCache: Cache[(Country, Province)] = MemcachedCache("localhost:11211")
+  implicit var countryCache: Cache[(Country, Province)] = MemcachedCache("localhost:11211")
 
   val country = Country("Argentina")
   val province = Province("Mendoza", Option(country))
@@ -159,8 +172,13 @@ object ClientDemo extends App {
   //  val response: Future[GetProvincesByCountryReply] = stub1.provincesByCountry(GetProvincesByCountryRequest(countryName = "Argentina"))
   //  val response: Future[GetCitiesByProvinceReply] = stub1.citiesByProvince(GetCitiesByProvinceRequest(provinceName = "Buenos Aires", countryName = "Argentina"))
   val response: Future[GetCountryAndProvinceByIPReply] = stub1.countryAndProvinceByIP(GetCountryAndProvinceByIPRequest(ip = "8.8.8.8"))
+  val response2: Future[GetCountryAndProvinceByIPReply] = stub1.countryAndProvinceByIP(GetCountryAndProvinceByIPRequest(ip = "8.8.8.8"))
 
   response.onComplete { r =>
+    println("Response: " + r)
+  }
+
+  response2.onComplete { r =>
     println("Response: " + r)
   }
 
