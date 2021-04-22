@@ -1,10 +1,10 @@
+import com.fasterxml.jackson.annotation.JsonCreator.Mode
 import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
 import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
 import io.etcd.jetcd.options.PutOption
 import io.grpc.{ManagedChannelBuilder, ServerBuilder}
 import scalacache.Cache
 import scalacache.memcached.MemcachedCache
-
 import scalacache._
 import scalacache.memcached._
 import scalacache.serialization.binary._
@@ -78,8 +78,7 @@ class CSVReader extends LocationDatabase {
   def getCountryAndProvinceByIP(ip: String): (Country, Province) = {
 
     implicit val countryCache: Cache[(Country, Province)] = MemcachedCache("localhost:11211")
-
-    countryCache.get(ip).getOrElse({
+    caching(ip) (ttl = None) {
       println("Aca no cacheo")
       val source = Source.fromURL("https://ipwhois.app/json/" + ip)
       val content: Json = parse(source.mkString).getOrElse(null)
@@ -88,7 +87,7 @@ class CSVReader extends LocationDatabase {
       val provinceString: String = content.\\("region").head.asString.getOrElse("")
       val country: Country = Country(name = countryString)
       (country, Province(name = provinceString, Option(country)))
-    })
+    }
   }
 }
 
@@ -140,9 +139,8 @@ object GeoServiceServer extends App {
   val province = Province("Mendoza", Option(country))
 
 
-  countryCache.put("192.168.0.1")((country, province))
-
-  println(countryCache.get("192.168.0.1"))
+  private val ip1 = "192.168.0.1"
+  println(countryCache.get(ip1))
 
 
   System.in.read()
@@ -172,7 +170,7 @@ object ClientDemo extends App {
   //  val response: Future[GetProvincesByCountryReply] = stub1.provincesByCountry(GetProvincesByCountryRequest(countryName = "Argentina"))
   //  val response: Future[GetCitiesByProvinceReply] = stub1.citiesByProvince(GetCitiesByProvinceRequest(provinceName = "Buenos Aires", countryName = "Argentina"))
   val response: Future[GetCountryAndProvinceByIPReply] = stub1.countryAndProvinceByIP(GetCountryAndProvinceByIPRequest(ip = "8.8.8.8"))
-  val response2: Future[GetCountryAndProvinceByIPReply] = stub1.countryAndProvinceByIP(GetCountryAndProvinceByIPRequest(ip = "8.8.8.8"))
+  val response2: Future[GetCountryAndProvinceByIPReply] = stub1.countryAndProvinceByIP(GetCountryAndProvinceByIPRequest(ip = "8.8.8.9"))
 
   response.onComplete { r =>
     println("Response: " + r)
