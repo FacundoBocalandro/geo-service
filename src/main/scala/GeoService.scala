@@ -1,20 +1,14 @@
-import com.fasterxml.jackson.annotation.JsonCreator.Mode
 import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
 import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
 import io.etcd.jetcd.options.PutOption
 import io.grpc.{ManagedChannelBuilder, ServerBuilder}
-import scalacache.Cache
-import scalacache.memcached.MemcachedCache
 import scalacache._
 import scalacache.memcached._
-import scalacache.serialization.binary._
+
 import scalacache.modes.sync.mode
 
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
 import scala.io._
-import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 
 class MyService extends GeoService {
   val locationDatabase = new CSVReader()
@@ -36,7 +30,7 @@ class MyService extends GeoService {
 
   override def countryAndProvinceByIP(request: GetCountryAndProvinceByIPRequest): Future[GetCountryAndProvinceByIPReply] = {
     val replyTuple = locationDatabase.getCountryAndProvinceByIP(request.ip)
-    val reply = GetCountryAndProvinceByIPReply(country = Option(replyTuple._1), province = Option(replyTuple._2))
+    val reply = GetCountryAndProvinceByIPReply(country = Option(replyTuple.country), province = Option(replyTuple.province))
     Future.successful(reply)
   }
 
@@ -52,8 +46,10 @@ trait LocationDatabase {
 
   def getCitiesByProvince(province: Province): List[City]
 
-  def getCountryAndProvinceByIP(ip: String): (Country, Province)
+  def getCountryAndProvinceByIP(ip: String): CountryProvince
 }
+
+final case class CountryProvince(country: Country, province: Province)
 
 class CSVReader extends LocationDatabase {
 
@@ -75,18 +71,18 @@ class CSVReader extends LocationDatabase {
     data.filter(_.province == province).map(_.city).distinct
   }
 
-  def getCountryAndProvinceByIP(ip: String): (Country, Province) = {
+  def getCountryAndProvinceByIP(ip: String): CountryProvince = {
 
-    implicit val countryCache: Cache[(Country, Province)] = MemcachedCache("localhost:11211")
-    caching(ip) (ttl = None) {
-      println("Aca no cacheo")
+    implicit val countryCache: Cache[CountryProvince] = MemcachedCache("localhost:11211")
+
+    val result = caching(ip) (ttl = None) {
       val source = Source.fromURL("https://ipwhois.app/json/" + ip)
       val content: Json = parse(source.mkString).getOrElse(null)
       source.close()
       val countryString: String = content.\\("country").head.asString.getOrElse("")
       val provinceString: String = content.\\("region").head.asString.getOrElse("")
       val country: Country = Country(name = countryString)
-      (country, Province(name = provinceString, Option(country)))
+      CountryProvince(country, Province(name = provinceString, Option(country)))
     }
   }
 }
@@ -115,10 +111,6 @@ object CSVReader {
 object GeoServiceServer extends App {
 
   import io.etcd.jetcd._
-  import scalacache._
-  import scalacache.memcached._
-  import scalacache.serialization.binary._
-  import scalacache.modes.sync.mode
 
   // create client
   val client: Client = Client.builder().endpoints("http://127.0.0.1:2379").build()
@@ -133,15 +125,16 @@ object GeoServiceServer extends App {
   // put the key-value
   kvClient.put(key, value, PutOption.newBuilder().withLeaseId(leaseId).build()).get()
 
-  implicit var countryCache: Cache[(Country, Province)] = MemcachedCache("localhost:11211")
+  val builder = ServerBuilder.forPort(args(0).toInt)
+  builder.addService(
+    GeoService.bindService(new MyService(), ExecutionContext.global)
+  )
+  val server = builder.build()
+  server.start()
 
-  val country = Country("Argentina")
-  val province = Province("Mendoza", Option(country))
+  println("Running....")
 
-
-  private val ip1 = "192.168.0.1"
-  println(countryCache.get(ip1))
-
+  server.awaitTermination()
 
   System.in.read()
 
@@ -179,7 +172,6 @@ object ClientDemo extends App {
   response2.onComplete { r =>
     println("Response: " + r)
   }
-
 
   System.in.read()
 }
