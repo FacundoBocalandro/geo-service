@@ -84,6 +84,7 @@ class CSVReader extends LocationDatabase {
       val country: Country = Country(name = countryString)
       CountryProvince(country, Province(name = provinceString, Option(country)))
     }
+    result
   }
 }
 
