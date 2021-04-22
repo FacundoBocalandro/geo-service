@@ -1,3 +1,4 @@
+import GeoServiceServer.kvClient
 import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
 import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
 import io.etcd.jetcd.{ByteSequence, Client}
@@ -6,13 +7,15 @@ import io.grpc.{ManagedChannelBuilder, ServerBuilder}
 import scalacache._
 import scalacache.memcached._
 
-import java.util.concurrent.{Executors}
+import java.util.concurrent.{Executors, TimeUnit}
 import scalacache.modes.try_._
 import scalacache.serialization.binary._
 
 import scala.io._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import com.google.common.base.Charsets.UTF_8
+
+import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 
 class MyService(port: String, leaseId: Long) extends GeoService {
@@ -120,9 +123,18 @@ class CSVReader extends LocationDatabase {
   }
 
   def getCountryAndProvinceByIP(ip: String): CountryProvince = {
-    implicit val countryCache: Cache[CountryProvince] = MemcachedCache("localhost:11211")
+    val client: Client = Client.builder().endpoints("http://127.0.0.1:2379").build()
+    val kvClient = client.getKVClient
 
-    val result = caching(ip) (ttl = None) {
+    val cacheTtl: String = kvClient.get(ByteSequence.from("/config/services/geo/cache/ttl", UTF_8)).get().getKvs.get(0).getValue.toString(UTF_8)
+    val cacheUrl: String = kvClient.get(ByteSequence.from("/config/services/geo/cache/url", UTF_8)).get().getKvs.get(0).getValue.toString(UTF_8)
+
+    println(s"cache-ttl: ${cacheTtl}")
+    println(s"cache-url: ${cacheUrl}")
+
+    implicit val countryCache: Cache[CountryProvince] = MemcachedCache(cacheUrl)
+
+    val result = caching(ip) (ttl = Option(Duration(cacheTtl.toLong, TimeUnit.SECONDS))) {
       val source = Source.fromURL("https://ipwhois.app/json/" + ip)
       val content: Json = parse(source.mkString).getOrElse(null)
       source.close()
