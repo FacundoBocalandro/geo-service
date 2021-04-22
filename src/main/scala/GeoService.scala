@@ -7,7 +7,8 @@ import scalacache._
 import scalacache.memcached._
 
 import java.util.concurrent.{Executors}
-import scalacache.modes.sync.mode
+import scalacache.modes.try_._
+import scalacache.serialization.binary._
 
 import scala.io._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
@@ -121,7 +122,7 @@ class CSVReader extends LocationDatabase {
   def getCountryAndProvinceByIP(ip: String): CountryProvince = {
     implicit val countryCache: Cache[CountryProvince] = MemcachedCache("localhost:11211")
 
-    caching(ip) (ttl = None) {
+    val result = caching(ip) (ttl = None) {
       val source = Source.fromURL("https://ipwhois.app/json/" + ip)
       val content: Json = parse(source.mkString).getOrElse(null)
       source.close()
@@ -130,6 +131,7 @@ class CSVReader extends LocationDatabase {
       val country: Country = Country(name = countryString)
       CountryProvince(country, Province(name = provinceString, Option(country)))
     }
+    result.get
   }
 }
 
