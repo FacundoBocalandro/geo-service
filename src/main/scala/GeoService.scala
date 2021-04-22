@@ -1,12 +1,18 @@
 import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
 import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
 import io.etcd.jetcd.{ByteSequence, Client}
+import io.etcd.jetcd.options.PutOption
 import io.grpc.{ManagedChannelBuilder, ServerBuilder}
+import scalacache._
+import scalacache.memcached._
 
 import java.util.concurrent.{Executors}
+import scalacache.modes.sync.mode
+
 import scala.io._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import com.google.common.base.Charsets.UTF_8
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 
 class MyService(port: String, leaseId: Long) extends GeoService {
   val client: Client = Client.builder().endpoints("http://127.0.0.1:2379").build()
@@ -67,7 +73,7 @@ class MyService(port: String, leaseId: Long) extends GeoService {
     if (master) {
       println("master response")
       val replyTuple = locationDatabase.getCountryAndProvinceByIP(request.ip)
-      val reply = GetCountryAndProvinceByIPReply(country = Option(replyTuple._1), province = Option(replyTuple._2))
+      val reply = GetCountryAndProvinceByIPReply(country = Option(replyTuple.country), province = Option(replyTuple.province))
       Future.successful(reply)
     } else {
       val master = electionClient.leader(ByteSequence.from("/service/geo/election".getBytes())).get().getKv.getValue.toString(UTF_8).toInt
@@ -87,8 +93,10 @@ trait LocationDatabase {
 
   def getCitiesByProvince(province: Province): List[City]
 
-  def getCountryAndProvinceByIP(ip: String): (Country, Province)
+  def getCountryAndProvinceByIP(ip: String): CountryProvince
 }
+
+final case class CountryProvince(country: Country, province: Province)
 
 class CSVReader extends LocationDatabase {
 
@@ -110,14 +118,18 @@ class CSVReader extends LocationDatabase {
     data.filter(_.province == province).map(_.city).distinct
   }
 
-  def getCountryAndProvinceByIP(ip: String): (Country, Province) = {
-    val source = Source.fromURL(s"https://ipapi.co/$ip/json")
-    val content: Json = parse(source.mkString).getOrElse(null)
-    source.close()
-    val countryString: String = content.\\("country_name").head.asString.getOrElse("")
-    val provinceString: String = content.\\("region").head.asString.getOrElse("")
-    val country: Country = Country(name = countryString)
-    (country, Province(name = provinceString, Option(country)))
+  def getCountryAndProvinceByIP(ip: String): CountryProvince = {
+    implicit val countryCache: Cache[CountryProvince] = MemcachedCache("localhost:11211")
+
+    caching(ip) (ttl = None) {
+      val source = Source.fromURL("https://ipwhois.app/json/" + ip)
+      val content: Json = parse(source.mkString).getOrElse(null)
+      source.close()
+      val countryString: String = content.\\("country").head.asString.getOrElse("")
+      val provinceString: String = content.\\("region").head.asString.getOrElse("")
+      val country: Country = Country(name = countryString)
+      CountryProvince(country, Province(name = provinceString, Option(country)))
+    }
   }
 }
 
@@ -227,8 +239,13 @@ object ClientDemo extends App {
   //  val response: Future[GetProvincesByCountryReply] = stub1.provincesByCountry(GetProvincesByCountryRequest(countryName = "Argentina"))
   //  val response: Future[GetCitiesByProvinceReply] = stub1.citiesByProvince(GetCitiesByProvinceRequest(provinceName = "Buenos Aires", countryName = "Argentina"))
   val response: Future[GetCountryAndProvinceByIPReply] = stub1.countryAndProvinceByIP(GetCountryAndProvinceByIPRequest(ip = "8.8.8.8"))
+  val response2: Future[GetCountryAndProvinceByIPReply] = stub1.countryAndProvinceByIP(GetCountryAndProvinceByIPRequest(ip = "8.8.8.9"))
 
   response.onComplete { r =>
+    println("Response: " + r)
+  }
+
+  response2.onComplete { r =>
     println("Response: " + r)
   }
 
