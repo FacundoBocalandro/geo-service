@@ -24,7 +24,6 @@ const getClients = async () => {
 async function initClient(){
     let indexHealthyClient = 0
     let healthyClients = []
-    let interval = null;
 
     // await client.watch()
     //     .prefix('/service/geo')
@@ -43,11 +42,11 @@ async function initClient(){
     for await (const ip of ips) {
         healthyClients = await getClients()
         while (healthyClients.length === 0){
-            interval = setInterval(getClients, 20000)
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            healthyClients = await getClients();
         }
-        interval = null;
-        console.log("has client")
         let currentClient = healthyClients[indexHealthyClient].service
+        console.log("client index: " + indexHealthyClient)
         currentClient.CountryAndProvinceByIP({ip: ip}).then(response => {
             console.log('IP: ', ip)
             console.log('Country: ', response.country.name)
@@ -60,48 +59,7 @@ async function initClient(){
         indexHealthyClient = indexHealthyClient >= healthyClients.length - 1 ? 0 : indexHealthyClient + 1
     }
 }
-//     const client1 = new geo_proto.GeoService("127.0.1.1:50000", grpc.credentials.createInsecure())
-//     const client2 = new geo_proto.GeoService("localhost:50001", grpc.credentials.createInsecure())
-//     const client3 = new geo_proto.GeoService("localhost:50002", grpc.credentials.createInsecure())
-//
-//     let healthyClients = [client1, client2, client3].map(promisifyAll)
-//     let indexHealthyClient = 0
-//     let unhealthyClients = []
-//
-//     for await (const ip of ips) {
-//              
-//         awaitcurrentClient.CountryAndProvinceByIP({ip: ip}).then(response => {
-//             console.log('IP: ', ip)
-//             console.log('Country: ', response.country.name)
-//             console.log('Province: ', response.province.name)
-//             console.log('Index: ', indexHealthyClient)
-//             console.log('\n')
-//         }).catch(() => {
-//             const unhealthyClient = healthyClients.splice(indexHealthyClient, 1)
-//             unhealthyClients = [...unhealthyClients, ...unhealthyClient]
-//         })
-//
-//
-//         if (ips.indexOf(ip) % 10 === 0){
-//             const{newHealthy, newUnhealthy} = await checkHealthy(healthyClients, unhealthyClients)
-//             healthyClients = newHealthy
-//             unhealthyClients = newUnhealthy
-//         }
-//     }
-// }
-//
-// async function checkHealthy(healthyClients, unhealthyClients) {
-//     let newHealthy = [...healthyClients]
-//     let newUnhealthy = [...unhealthyClients]
-//     for (const client of unhealthyClients) {
-//         await client.Ping({}).then(() => {
-//             newHealthy = [...newHealthy, client]
-//             newUnhealthy.splice(newUnhealthy.indexOf(client), 1)
-//         }).catch( () => {})
-//     }
-//     return {newHealthy, newUnhealthy}
-// }
-//
+
 function promisifyAll(client) {
     const to = {};
     for (var k in client) {
@@ -111,7 +69,7 @@ function promisifyAll(client) {
     return to;
 }
 
-const ips = ["8.8.8.8"]
+const ips = Array(15).fill().map(() => "8.8.8.8")
 
 
 initClient();

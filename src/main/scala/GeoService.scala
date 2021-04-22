@@ -1,37 +1,78 @@
 import geoservice.geoService.GeoServiceGrpc.{GeoService, GeoServiceStub}
 import geoservice.geoService.{City, Country, GeoServiceGrpc, GetCitiesByProvinceReply, GetCitiesByProvinceRequest, GetCountriesListReply, GetCountriesListRequest, GetCountryAndProvinceByIPReply, GetCountryAndProvinceByIPRequest, GetProvincesByCountryReply, GetProvincesByCountryRequest, PingReply, PingRequest, Province}
-import io.etcd.jetcd.kv.PutResponse
-import io.etcd.jetcd.support.CloseableClient
+import io.etcd.jetcd.{ByteSequence, Client}
 import io.grpc.{ManagedChannelBuilder, ServerBuilder}
 
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
+import java.util.concurrent.{Executors}
 import scala.io._
-import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import com.google.common.base.Charsets.UTF_8
 
-class MyService extends GeoService {
+class MyService(port: String, leaseId: Long) extends GeoService {
+  val client: Client = Client.builder().endpoints("http://127.0.0.1:2379").build()
+  val electionClient = client.getElectionClient
   val locationDatabase = new CSVReader()
+  var master = false
+  var stub = None
+
+  implicit val context: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
+
+  def createStub(ip: String, port: Int): GeoServiceStub = {
+    val builder = ManagedChannelBuilder.forAddress(ip, port)
+    builder.usePlaintext()
+    val channel = builder.build()
+
+    GeoServiceGrpc.stub(channel)
+  }
+
+  val f2 = Future {
+    electionClient.campaign(ByteSequence.from("/service/geo/election".getBytes()), leaseId, ByteSequence.from(port.getBytes())).get()
+  }
+
+  f2 map { response => {
+    master = true
+  }}
 
   override def countriesList(request: GetCountriesListRequest): Future[GetCountriesListReply] = {
-    val reply = GetCountriesListReply(countries = locationDatabase.getCountries)
-    Future.successful(reply)
+    if (master) {
+      val reply = GetCountriesListReply(countries = locationDatabase.getCountries)
+      Future.successful(reply)
+    } else {
+      val master = electionClient.leader(ByteSequence.from("/service/geo/election".getBytes())).get().getKv.getValue.toString(UTF_8).toInt
+      createStub("127.0.0.1", master).countriesList(request)
+    }
   }
 
   override def provincesByCountry(request: GetProvincesByCountryRequest): Future[GetProvincesByCountryReply] = {
-    val reply = GetProvincesByCountryReply(provinces = locationDatabase.getProvincesByCountry(Country(name = request.countryName)))
-    Future.successful(reply)
+    if (master) {
+      val reply = GetProvincesByCountryReply(provinces = locationDatabase.getProvincesByCountry(Country(name = request.countryName)))
+      Future.successful(reply)
+    } else {
+      val master = electionClient.leader(ByteSequence.from("/service/geo/election".getBytes())).get().getKv.getValue.toString(UTF_8).toInt
+      createStub("127.0.0.1", master).provincesByCountry(request)
+    }
   }
 
   override def citiesByProvince(request: GetCitiesByProvinceRequest): Future[GetCitiesByProvinceReply] = {
-    val reply = GetCitiesByProvinceReply(cities = locationDatabase.getCitiesByProvince(Province(name = request.provinceName, country = Option(Country(name = request.countryName)))))
-    Future.successful(reply)
+    if (master) {
+      val reply = GetCitiesByProvinceReply(cities = locationDatabase.getCitiesByProvince(Province(name = request.provinceName, country = Option(Country(name = request.countryName)))))
+      Future.successful(reply)
+    } else {
+      val master = electionClient.leader(ByteSequence.from("/service/geo/election".getBytes())).get().getKv.getValue.toString(UTF_8).toInt
+      createStub("127.0.0.1", master).citiesByProvince(request)
+    }
   }
 
   override def countryAndProvinceByIP(request: GetCountryAndProvinceByIPRequest): Future[GetCountryAndProvinceByIPReply] = {
-    val replyTuple = locationDatabase.getCountryAndProvinceByIP(request.ip)
-    val reply = GetCountryAndProvinceByIPReply(country = Option(replyTuple._1), province = Option(replyTuple._2))
-    Future.successful(reply)
+    if (master) {
+      println("master response")
+      val replyTuple = locationDatabase.getCountryAndProvinceByIP(request.ip)
+      val reply = GetCountryAndProvinceByIPReply(country = Option(replyTuple._1), province = Option(replyTuple._2))
+      Future.successful(reply)
+    } else {
+      val master = electionClient.leader(ByteSequence.from("/service/geo/election".getBytes())).get().getKv.getValue.toString(UTF_8).toInt
+      createStub("127.0.0.1", master).countryAndProvinceByIP(request)
+    }
   }
 
   override def ping(request: PingRequest): Future[PingReply] = {
@@ -70,10 +111,10 @@ class CSVReader extends LocationDatabase {
   }
 
   def getCountryAndProvinceByIP(ip: String): (Country, Province) = {
-    val source = Source.fromURL("https://ipwhois.app/json/" + ip)
+    val source = Source.fromURL(s"https://ipapi.co/$ip/json")
     val content: Json = parse(source.mkString).getOrElse(null)
     source.close()
-    val countryString: String = content.\\("country").head.asString.getOrElse("")
+    val countryString: String = content.\\("country_name").head.asString.getOrElse("")
     val provinceString: String = content.\\("region").head.asString.getOrElse("")
     val country: Country = Country(name = countryString)
     (country, Province(name = provinceString, Option(country)))
@@ -105,27 +146,29 @@ object GeoServiceServer extends App {
 
   import io.etcd.jetcd._
   import io.etcd.jetcd.options.PutOption
-  import io.etcd.jetcd.support.Observers
-  import io.grpc.stub.StreamObserver
-  import java.util.concurrent.CountDownLatch
-  import java.util.concurrent.atomic.AtomicReference
-  import io.etcd.jetcd.support.CloseableClient
   import java.util.concurrent.TimeUnit
-  import io.etcd.jetcd.lease.LeaseKeepAliveResponse
   import java.util.concurrent.Executors
   import concurrent.{ExecutionContext, Future}
   import concurrent.duration._
   import akka.actor._
+  import com.google.common.base.Charsets.UTF_8
+
 
   // create client
   val client: Client = Client.builder().endpoints("http://127.0.0.1:2379").build()
-  val kvClient: KV = client.getKVClient
-  val leaseClient: Lease = client.getLeaseClient
+  val kvClient = client.getKVClient
+  val leaseClient = client.getLeaseClient
 
   val key = ByteSequence.from(s"/service/geo/${args(0)}".getBytes())
   val value = ByteSequence.from(args(0).getBytes())
 
-  val leaseId = leaseClient.grant(25).get.getID
+  val ttl: String = kvClient.get(ByteSequence.from("/config/services/geo/lease/ttl", UTF_8)).get().getKvs.get(0).getValue.toString(UTF_8)
+  val keepAliveTime: String = kvClient.get(ByteSequence.from("/config/services/geo/lease/keep-alive-time", UTF_8)).get().getKvs.get(0).getValue.toString(UTF_8)
+
+  println(s"ttl: ${ttl}")
+  println(s"keep-alive: ${keepAliveTime}")
+
+  val leaseId = leaseClient.grant(ttl.toLong).get.getID
   println("Hex lease: " + leaseId.toHexString)
 
   // put the key-value
@@ -144,14 +187,14 @@ object GeoServiceServer extends App {
     }
 
     scheduler.schedule(
-      initialDelay = Duration(10, TimeUnit.SECONDS),
-      interval = Duration(10, TimeUnit.SECONDS),
+      initialDelay = Duration(keepAliveTime.toLong, TimeUnit.SECONDS),
+      interval = Duration(keepAliveTime.toLong, TimeUnit.SECONDS),
       runnable = task)(actorSystem.dispatcher)
   }
 
   val builder = ServerBuilder.forPort(args(0).toInt)
   builder.addService(
-    GeoService.bindService(new MyService(), ExecutionContext.global)
+    GeoService.bindService(new MyService(args(0), leaseId), ExecutionContext.global)
   )
   val server = builder.build()
   server.start()
