@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: geo
+  labels:
+    app: geo
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: geo
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: geo
+        tier: backend
+    spec:
+      containers:
+        - name: geo
+          image: "geo-service:0.1"
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ttl
+              valueFrom:
+                configMapKeyRef:
+                  name: geo-config
+                  key: ttl
+            - name: port
+              valueFrom:
+                configMapKeyRef:
+                  name: geo-config
+                  key: port

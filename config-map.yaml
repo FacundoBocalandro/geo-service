@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: geo-config
+  namespace: default
+data:
+  ttl: "600"
+  port: "8080"

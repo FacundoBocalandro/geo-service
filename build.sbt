@@ -1,5 +1,4 @@
 name := "geo-service"
-
 version := "0.1"
 
 scalaVersion := "2.13.5"
@@ -35,3 +34,11 @@ libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.11.0"
 resolvers ++= Seq(
   "jitpack" at "https://jitpack.io/"
 )
+
+mainClass in assembly := Some("GeoServiceServer")
+
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", "services", xs @ _*) => MergeStrategy.filterDistinctLines
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}
